@@ -4,14 +4,19 @@
 //! Local ownership is independent of terminal actions. See the local HTTP
 //! lifecycle guide for admission, policy pairing, and adapter obligations.
 
+mod claim;
 mod counter;
+pub(crate) mod headers;
 mod response;
 mod route;
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+pub use claim::LocalClaim;
 pub use counter::LocalByteCounter;
 pub use response::LocalResponse;
 pub use route::{LocalBodyOwnership, LocalMethods, LocalPath, LocalRoute};
@@ -107,4 +112,10 @@ pub trait LocalHttpHandler: Send {
     /// Await once on every managed exit after construction, including failures.
     /// Forced task/runtime termination cannot guarantee async cleanup.
     async fn finalize(&mut self, outcome: LocalOutcome);
+}
+
+/// Marker used to defer normal access-log hooks to managed completion.
+pub struct LocalHttpActive {
+    /// Retains the original owner and synchronizes repeated-claim conflicts.
+    pub(crate) claim: LocalClaim,
 }

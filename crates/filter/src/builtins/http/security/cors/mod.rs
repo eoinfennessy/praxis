@@ -307,6 +307,11 @@ impl CorsFilter {
 
 #[async_trait]
 impl HttpFilter for CorsFilter {
+    #[cfg(feature = "local-http")]
+    fn local_http_compatibility(&self) -> crate::local_http::LocalCompatibility {
+        crate::local_http::LocalCompatibility::Policy
+    }
+
     fn name(&self) -> &'static str {
         "cors"
     }
@@ -348,6 +353,9 @@ impl HttpFilter for CorsFilter {
             return Ok(FilterAction::Continue);
         };
 
+        #[cfg(feature = "local-http")]
+        record_local_cors_headers(&mut ctx.extensions);
+
         if strip_upstream_cors_headers(resp) {
             trace!("stripped upstream CORS response headers");
             ctx.response_headers_modified = true;
@@ -372,6 +380,16 @@ impl HttpFilter for CorsFilter {
 // -----------------------------------------------------------------------------
 // Upstream Header Stripping
 // -----------------------------------------------------------------------------
+
+/// Preserve authoritative CORS writes and removals across local replacements.
+#[cfg(feature = "local-http")]
+fn record_local_cors_headers(extensions: &mut crate::extensions::RequestExtensions) {
+    if let Some(explicit) = extensions.get_mut::<crate::local_http::headers::PolicyHeaders>() {
+        explicit
+            .touched
+            .extend(UPSTREAM_CORS_HEADERS.map(http::header::HeaderName::from_static));
+    }
+}
 
 /// Remove every upstream CORS response header listed in
 /// [`UPSTREAM_CORS_HEADERS`].

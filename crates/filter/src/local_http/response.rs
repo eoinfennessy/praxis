@@ -69,4 +69,18 @@ impl LocalResponse {
             headers: headers.clone(),
         }
     }
+
+    /// Persist policy modifications before delivery or chunk filtering.
+    pub(crate) fn set_head(&mut self, head: Response) {
+        match self {
+            Self::Buffered(response) => {
+                response.status = head.status.as_u16();
+                response.headers = head.headers;
+            },
+            Self::Streamed(response) => {
+                response.status = head.status.as_u16();
+                response.headers = head.headers;
+            },
+        }
+    }
 }
