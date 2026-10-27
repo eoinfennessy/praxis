@@ -76,7 +76,7 @@ impl FilterPipeline {
         ctx: &mut HttpFilterContext<'_>,
     ) -> Result<FilterAction, FilterError> {
         #[cfg(feature = "local-http")]
-        if self.has_local_http_routes() {
+        if self.requires_local_http(ctx) {
             return Ok(FilterAction::Reject(Rejection::status(500)));
         }
         for &idx in &self.request_head_filter_indices {
@@ -130,7 +130,7 @@ impl FilterPipeline {
     #[expect(clippy::too_many_lines, reason = "filter identity tracking adds lines per branch")]
     pub async fn execute_http_request(&self, ctx: &mut HttpFilterContext<'_>) -> Result<FilterAction, FilterError> {
         #[cfg(feature = "local-http")]
-        if self.has_local_http_routes() {
+        if self.requires_local_http(ctx) {
             return Ok(FilterAction::Reject(Rejection::status(500)));
         }
         if self.enables_trace_propagation(ctx.request) {

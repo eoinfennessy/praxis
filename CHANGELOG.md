@@ -38,6 +38,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Unmatched requests can use ordinary proxy processing in pipelines with
+  local HTTP routes, while matching or already-claimed requests remain local.
+- Local HTTP delivery cancels blocked response suppression and discards source
+  headers when replacing precommit failures with an empty 500.
 - Local HTTP header and CORS policies survive response replacement even when
   their writes or removals leave the original headers unchanged.
 - The Hyper backend rejects reserved client trailer names before forwarding

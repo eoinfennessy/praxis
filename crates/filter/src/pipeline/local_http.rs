@@ -34,6 +34,14 @@ enum Phase {
     reason = "pipeline concerns are split across modules"
 )]
 impl FilterPipeline {
+    /// Keep matching and already-claimed requests within the local lifecycle.
+    pub(super) fn requires_local_http(&self, ctx: &HttpFilterContext<'_>) -> bool {
+        ctx.extensions.get::<LocalHttpActive>().is_some()
+            || self.local_routes.iter().any(|(_, route)| {
+                route.methods.matches(&ctx.request.method) && route.path.matches(ctx.request.uri.path())
+            })
+    }
+
     /// Claim the admitted route once, before hooks, reads, or dispatch.
     pub fn claim_local_http(self: &Arc<Self>, ctx: &mut HttpFilterContext<'_>) -> Option<LocalClaim> {
         if let Some(active) = ctx.extensions.get::<LocalHttpActive>() {
@@ -101,8 +109,7 @@ impl FilterPipeline {
             if ctx.executed_filter_indices.get(index) != Some(&true) {
                 continue;
             }
-            let replacement = self.local_response_hook(filter, ctx, &mut edits).await;
-            if let Some(replacement) = replacement {
+            if let Some(replacement) = self.local_response_hook(filter, ctx, &mut edits).await {
                 response.replace(replacement).await;
                 if let Some(head) = ctx.response_header.as_deref_mut() {
                     *head = response.head();
@@ -117,6 +124,7 @@ impl FilterPipeline {
                 headers: head.headers.clone(),
             });
         }
+        ctx.extensions.insert(edits);
         replaced
     }
 

@@ -111,3 +111,8 @@ rcgen = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 tracing-subscriber = { workspace = true }
+
+[[example]]
+name = "local-http"
+path = "examples/local_http.rs"
+required-features = ["local-http"]

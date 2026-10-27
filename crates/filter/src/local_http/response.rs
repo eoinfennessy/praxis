@@ -3,7 +3,7 @@
 
 //! Local response sources reuse terminal response representations.
 
-use crate::{FilterError, Rejection, Response, StreamingTerminalResponse, TerminalResponse};
+use crate::{FilterError, HttpFilterContext, Rejection, Response, StreamingTerminalResponse, TerminalResponse};
 
 /// Local response before downstream commitment.
 #[derive(Debug)]
@@ -40,6 +40,15 @@ impl LocalResponse {
     /// Local internal error with no service details exposed.
     pub fn internal_error() -> Self {
         Self::Buffered(TerminalResponse::new(500))
+    }
+
+    /// Precommit delivery error retaining only already-applied header policies.
+    pub fn internal_error_with_policies(ctx: &HttpFilterContext<'_>) -> Self {
+        let mut response = TerminalResponse::new(500);
+        if let Some(edits) = ctx.extensions.get::<super::headers::HeaderEdits>() {
+            edits.apply(&mut response.headers);
+        }
+        Self::Buffered(response)
     }
 
     /// Terminate the old source before replacing a pending response.
