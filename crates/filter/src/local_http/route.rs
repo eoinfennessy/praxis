@@ -5,6 +5,7 @@
 
 use http::Method;
 
+use crate::path_match::path_prefix_matches;
 
 /// Methods owned by a route; HEAD is never implicitly added to GET.
 #[derive(Clone, Debug)]
@@ -15,6 +16,23 @@ pub enum LocalMethods {
     Explicit(Vec<Method>),
 }
 
+impl LocalMethods {
+    /// Whether this scope includes the method.
+    pub(crate) fn matches(&self, method: &Method) -> bool {
+        match self {
+            Self::All => true,
+            Self::Explicit(methods) => methods.contains(method),
+        }
+    }
+
+    /// Whether any method belongs to both scopes.
+    pub(crate) fn overlaps(&self, other: &Self) -> bool {
+        match other {
+            Self::All => true,
+            Self::Explicit(methods) => methods.iter().any(|method| self.matches(method)),
+        }
+    }
+}
 
 /// Original admitted path scope, ignoring queries and subsequent rewrites.
 #[derive(Clone, Debug)]
@@ -25,6 +43,31 @@ pub enum LocalPath {
     SegmentPrefix(String),
 }
 
+impl LocalPath {
+    /// Path text for declaration validation.
+    pub(crate) fn text(&self) -> &str {
+        match self {
+            Self::Exact(path) | Self::SegmentPrefix(path) => path,
+        }
+    }
+
+    /// Whether the admitted path belongs to this scope.
+    pub(crate) fn matches(&self, path: &str) -> bool {
+        match self {
+            Self::Exact(exact) => path == exact,
+            Self::SegmentPrefix(prefix) => path_prefix_matches(path, prefix),
+        }
+    }
+
+    /// Whether exact/prefix scopes share any path; precedence is forbidden.
+    pub(crate) fn overlaps(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Exact(path), _) => other.matches(path),
+            (_, Self::Exact(path)) => self.matches(path),
+            (Self::SegmentPrefix(left), Self::SegmentPrefix(right)) => self.matches(right) || other.matches(left),
+        }
+    }
+}
 
 /// Request-body ownership must explicitly be exclusive.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

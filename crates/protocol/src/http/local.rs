@@ -5,7 +5,18 @@
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use praxis_filter::{FilterError, HttpFilterContext, Response, local_http::LocalOutcome};
+use praxis_filter::{FilterError, FilterPipeline, HttpFilterContext, Response, local_http::LocalOutcome};
+
+/// Live adapters currently cannot install local-handler pipelines.
+///
+/// # Errors
+/// Returns an error until the adapter implements all local transport duties.
+pub fn require_supported_adapter(pipeline: &FilterPipeline) -> Result<(), FilterError> {
+    if pipeline.has_local_http_routes() {
+        return Err("local HTTP serving is unsupported by this adapter (Issue 2)".into());
+    }
+    Ok(())
+}
 
 /// Managed completion handed to the adapter once, including failed delivery.
 #[derive(Clone, Copy, Debug)]

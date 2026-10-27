@@ -38,7 +38,7 @@ use crate::{actions::BoundUpstreamBodyOutcome, metrics::PHASE_BOUND_UPSTREAM};
 /// Add chunk size to accumulator.
 pub(super) fn accumulate_body_bytes(counter: &mut u64, body: Option<&Bytes>) {
     if let Some(b) = body {
-        *counter += b.len() as u64;
+        *counter = counter.saturating_add(u64::try_from(b.len()).unwrap_or(u64::MAX));
     }
 }
 

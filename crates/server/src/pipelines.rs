@@ -213,6 +213,8 @@ pub(crate) fn resolve_pipelines_with_composition(
         let entry_snapshot = entries.clone();
         let mut pipeline =
             FilterPipeline::build_with_chains(&mut entries, &registry, &chains, &config.insecure_options)?;
+        #[cfg(feature = "local-http")]
+        praxis_protocol::http::local::require_supported_adapter(&pipeline)?;
         configure_pipeline(
             &mut pipeline,
             config,
@@ -398,6 +400,7 @@ fn validate_pipeline(
     reason = "tests"
 )]
 mod tests {
+
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use praxis_core::health::HealthRegistry;
