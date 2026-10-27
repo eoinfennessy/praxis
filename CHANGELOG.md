@@ -19,6 +19,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- Experimental, off-by-default `local-http` handler contracts, mandatory
+  route/pipeline validation, and a fail-closed lifecycle coordinator tested
+  with bounded fake I/O. Live adapters reject these pipelines until local
+  transport serving lands. See `docs/architecture/local-http.md`.
+
 - An experimental network backend behind the `hyper` feature, off by
   default: the proxy data path, TCP forwarder, admin surface and sub-request
   client on hyper 1.x. See `docs/architecture/hyper-backend.md`.
