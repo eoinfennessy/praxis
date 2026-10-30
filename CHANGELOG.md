@@ -44,6 +44,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   headers when replacing precommit failures with an empty 500.
 - Local HTTP header and CORS policies survive response replacement even when
   their writes or removals leave the original headers unchanged.
+- Local CORS preflight responses keep their generated permissions through the
+  coordinator's response-policy unwind.
 - The FIPS runtime probe selects the Pingora backend when compiling its
   listener tests with default features disabled.
 - The Hyper backend rejects reserved client trailer names before forwarding

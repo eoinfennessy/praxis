@@ -882,6 +882,78 @@ async fn cors_and_configured_security_headers_cover_success_denial_and_handler_e
 }
 
 #[tokio::test]
+async fn allowed_options_preflight_keeps_permissions_through_local_exchange() {
+    let state = State::default();
+    let registry = registry(vec![Fixture::owner(state.clone())]);
+    let mut entries: Vec<praxis_filter::FilterEntry> = serde_yaml::from_str(
+        r#"
+- filter: cors
+  allow_origins: ["https://client.example"]
+  allow_methods: [POST]
+  allow_headers: [x-custom]
+  allow_credentials: true
+  max_age: 600
+  allow_private_network: true
+- filter: owner
+"#,
+    )
+    .unwrap();
+    let pipeline = Arc::new(FilterPipeline::build(&mut entries, &registry).unwrap());
+    let mut request = praxis_filter::Request {
+        method: http::Method::OPTIONS,
+        uri: "/files".parse().unwrap(),
+        headers: http::HeaderMap::new(),
+    };
+    request
+        .headers
+        .insert("origin", http::HeaderValue::from_static("https://client.example"));
+    request
+        .headers
+        .insert("access-control-request-method", http::HeaderValue::from_static("POST"));
+    request.headers.insert(
+        "access-control-request-headers",
+        http::HeaderValue::from_static("x-custom"),
+    );
+    request.headers.insert(
+        "access-control-request-private-network",
+        http::HeaderValue::from_static("true"),
+    );
+    let mut head = Response {
+        status: http::StatusCode::OK,
+        headers: http::HeaderMap::new(),
+    };
+    let mut ctx = context::context(&request, &pipeline);
+    ctx.response_header = Some(&mut head);
+    let result = LocalExchange::claim(&pipeline, &mut ctx)
+        .unwrap()
+        .run(
+            &mut ctx,
+            &mut Transport {
+                state: state.clone(),
+                input: Input::bytes(0),
+            },
+        )
+        .await;
+
+    assert_eq!(result.status, 204);
+    assert_eq!(result.outcome, LocalOutcome::PolicyDenied);
+    let inner = state.inner.lock().unwrap();
+    let (status, headers) = inner.head.as_ref().unwrap();
+    assert_eq!(*status, 204);
+    assert_eq!(
+        headers.get("access-control-allow-origin").unwrap(),
+        "https://client.example"
+    );
+    assert_eq!(headers.get("access-control-allow-methods").unwrap(), "POST");
+    assert_eq!(headers.get("access-control-allow-headers").unwrap(), "x-custom");
+    assert_eq!(headers.get("access-control-allow-credentials").unwrap(), "true");
+    assert_eq!(headers.get("access-control-max-age").unwrap(), "600");
+    assert_eq!(headers.get("access-control-allow-private-network").unwrap(), "true");
+    drop(inner);
+    assert_complete(&state, 0);
+}
+
+#[tokio::test]
 async fn access_logging_is_once_and_honors_scope_and_emit_conditions() {
     for (scope, emit, expected) in [("/files", "[2xx]", 1), ("/files", "[4xx]", 0), ("/other", "[2xx]", 0)] {
         let directory = tempfile::tempdir().unwrap();
